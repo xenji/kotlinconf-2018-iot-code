@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        maven { url 'http://dl.bintray.com/kotlin/kotlin-eap' }
+
+        jcenter()
+
+        maven { url 'https://plugins.gradle.org/m2/' }
+    }
+}
+rootProject.name = 'motion-stream-proc'
+
