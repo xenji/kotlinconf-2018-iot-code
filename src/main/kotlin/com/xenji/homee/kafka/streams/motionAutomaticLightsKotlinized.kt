@@ -18,7 +18,7 @@ private val eventStreamConsumedWith = Consumed.with(Serdes.Long(), AttributeSerd
 typealias StreamProcBuilder = (StreamsBuilder.() -> Unit) -> KafkaStreams
 typealias ConfigMap = Map<String, String>
 
-fun main(args: Array<String>) {
+fun main() {
     val streamProc = configuredStreamContext(config = configuration)
     streamProc {
         with(streamOfMotionEvents()) {
@@ -28,33 +28,27 @@ fun main(args: Array<String>) {
     }
 }
 
-fun configuredStreamContext(
-    config: ConfigMap,
-    autoStart: Boolean = true
-): StreamProcBuilder = {
-    val ks = KafkaStreams(
-        StreamsBuilder().apply(it).build(),
-        config.toProperties()
-    )
-    if (autoStart) ks.start()
-    ks
-}
+fun configuredStreamContext(config: ConfigMap, autoStart: Boolean = true): StreamProcBuilder =
+    {
+        val ks = KafkaStreams(
+            StreamsBuilder().apply(it).build(),
+            config.toProperties()
+        )
+        if (autoStart) ks.start()
+        ks
+    }
 
-fun StreamsBuilder.streamOfMotionEvents(
-    topic: String = "attribute_events"
-): KStream<Long, Attribute> = stream(topic, eventStreamConsumedWith)
-    .filter { _, value -> value.type == AttributeType.MotionAlarm.value }
+fun StreamsBuilder.streamOfMotionEvents(topic: String = "attribute_events"): KStream<Long, Attribute> =
+    stream(topic, eventStreamConsumedWith)
+        .filter { _, value -> value.type == AttributeType.MotionAlarm.value }
 
-fun KStream<Long, Attribute>.whenNodeIdOccursMoreThan(
-    times: Int,
-    per: Duration
-): KTable<Windowed<Int>, Long> = groupBy { _, (_, _, node_id) -> node_id }
-    .windowedBy(SessionWindows.with(per.toMillis()))
-    .count()
-    .filter { _, amount -> amount > times }
+fun KStream<Long, Attribute>.whenNodeIdOccursMoreThan(times: Int, per: Duration): KTable<Windowed<Int>, Long> =
+    groupBy { _, (_, _, node_id) -> node_id }
+        .windowedBy(SessionWindows.with(per))
+        .count()
+        .filter { _, amount -> amount > times }
 
-fun KTable<Windowed<Int>, Long>.notifyLightsInNodeGroup(
-    topic: String = "notify_lights_in_group_of_node"
-) = mapValues { readOnlyKey, _ -> readOnlyKey.key() }
-    .toStream()
-    .to(topic, Produced.valueSerde<Windowed<Int>, Int>(Serdes.Integer()))
+fun KTable<Windowed<Int>, Long>.notifyLightsInNodeGroup(topic: String = "notify_lights_in_group_of_node") =
+    mapValues { readOnlyKey, _ -> readOnlyKey.key() }
+        .toStream()
+        .to(topic, Produced.valueSerde<Windowed<Int>, Int>(Serdes.Integer()))
